@@ -1,3 +1,4 @@
 .env
 .env.*
 !.env.example
+expo-env.d.ts
