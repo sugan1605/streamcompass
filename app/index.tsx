@@ -1,4 +1,3 @@
-// app/index.tsx
 import { useEffect, useRef } from "react";
 import { View, Text, Animated, Easing, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
