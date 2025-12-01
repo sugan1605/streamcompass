@@ -1,4 +1,4 @@
-// frontend/src/types/tmdb.ts
+
 
 export interface TmdbMovieResult {
   id: number;
