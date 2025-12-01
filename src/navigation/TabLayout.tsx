@@ -1,4 +1,3 @@
-// src/navigation/TabLayout.tsx
 import React from "react";
 import { Tabs } from "expo-router";
 
@@ -10,7 +9,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      // vår custom, flytende tabbar
+      // Laget en custom flytende tabbar
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
