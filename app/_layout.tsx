@@ -1,4 +1,3 @@
-// app/_layout.tsx (or wherever this file lives)
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthProvider } from "../src/context/AuthContext";
