@@ -1,4 +1,4 @@
-// types/declarations.d.ts
+
 
 // 🔹 Phosphor icons – React Native
 declare module "phosphor-react-native";
