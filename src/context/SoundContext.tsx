@@ -15,7 +15,7 @@ type SoundContextValue = {
 
 const SoundContext = createContext<SoundContextValue | undefined>(undefined);
 
-// 🔊 pek til mp3-filen din
+
 const CLICK_SOUND: AVPlaybackSource = require("../../assets/sounds/mouse-click-117076.mp3");
 
 export function SoundProvider({ children }: { children: ReactNode }) {
