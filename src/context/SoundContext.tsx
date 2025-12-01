@@ -1,4 +1,3 @@
-// src/context/SoundContext.tsx
 import {
   createContext,
   useContext,
