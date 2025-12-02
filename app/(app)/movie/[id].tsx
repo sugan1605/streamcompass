@@ -1,10 +1,4 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Alert,
-  Animated,
-} from "react-native";
+import { View, Text, ScrollView, Alert, Animated } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
@@ -42,10 +36,7 @@ import { MovieMetaInfo } from "@/src/components/ui/MovieMetaInfo";
 import { UILineDivider } from "@/src/components/ui/UILineDivider";
 import { MovieActionButton } from "@/src/components/ui/MovieActionButton";
 import { MovieHeroPoster } from "@/src/components/ui/MovieHeroPoster";
-import {
-  CastAvatar,
-  CastAvatarSkeleton,
-} from "@/src/components/ui/CastAvatar";
+import { CastAvatar, CastAvatarSkeleton } from "@/src/components/ui/CastAvatar";
 import { MovieWatchProvidersSection } from "@/src/components/ui/MovieWatchProvidersSection";
 import {
   MovieSimilarCarousel,
@@ -74,10 +65,14 @@ export default function MovieDetailsScreen() {
   const [favLoading, setFavLoading] = useState(false);
 
   const [cast, setCast] = useState<any[]>([]);
+  const [castLoading, setCastLoading] = useState(false);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [similar, setSimilar] = useState<Movie[]>([]);
+  const [similarLoading, setSimilarLoading] = useState(false);
   const [providers, setProviders] = useState<WatchProviders | null>(null);
+  const [providersLoading, setProvidersLoading] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // Fade-in effect for hero poster
   const posterOpacity = useRef(new Animated.Value(0)).current;
@@ -121,6 +116,7 @@ export default function MovieDetailsScreen() {
     })();
   }, [id]);
 
+  // Poster fade-in
   useEffect(() => {
     if (!posterUri) {
       posterOpacity.setValue(1);
@@ -134,6 +130,7 @@ export default function MovieDetailsScreen() {
     }).start();
   }, [posterUri, posterOpacity]);
 
+  // Favorite state
   useEffect(() => {
     const loadFavoriteState = async () => {
       const user = auth.currentUser;
@@ -159,19 +156,24 @@ export default function MovieDetailsScreen() {
     }
   }, [movie?.id]);
 
+  // Cast
   useEffect(() => {
     if (!movie?.id) return;
 
     (async () => {
       try {
+        setCastLoading(true);
         const credits = await fetchMovieCredits(movie.id);
         setCast(credits.cast ?? []);
       } catch (e) {
         console.log("Error loading cast:", e);
+      } finally {
+        setCastLoading(false);
       }
     })();
   }, [movie?.id]);
 
+  // Trailer
   useEffect(() => {
     if (!movie?.id) return;
 
@@ -191,41 +193,53 @@ export default function MovieDetailsScreen() {
     })();
   }, [movie?.id]);
 
+  // Similar movies
   useEffect(() => {
     if (!movie?.id) return;
 
     (async () => {
       try {
+        setSimilarLoading(true);
         const results = await fetchSimilarMovies(movie.id);
         setSimilar(results);
       } catch (e) {
         console.log("Error loading similar movies:", e);
+      } finally {
+        setSimilarLoading(false);
       }
     })();
   }, [movie?.id]);
 
+  // Reviews
   useEffect(() => {
     if (!movie?.id) return;
 
     (async () => {
       try {
+        setReviewsLoading(true);
         const data = await fetchMovieReviews(movie.id);
         setReviews(data);
       } catch (e) {
         console.log("Error loading reviews:", e);
+      } finally {
+        setReviewsLoading(false);
       }
     })();
   }, [movie?.id]);
 
+  // Where to watch providers
   useEffect(() => {
     if (!movie?.id) return;
 
     (async () => {
       try {
+        setProvidersLoading(true);
         const wp = await fetchWatchProviders(movie.id, "US");
         setProviders(wp);
       } catch (e) {
         console.log("Error loading watch providers:", e);
+      } finally {
+        setProvidersLoading(false);
       }
     })();
   }, [movie?.id]);
@@ -326,9 +340,7 @@ export default function MovieDetailsScreen() {
 
           {/* Cast skeleton */}
           <UILineDivider />
-          <Text className="mb-3 text-lg font-semibold text-slate-50">
-            Cast
-          </Text>
+          <Text className="mb-3 text-lg font-semibold text-slate-50">Cast</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -436,12 +448,33 @@ export default function MovieDetailsScreen() {
           />
 
           {/* Reviews */}
-          {reviews.length > 0 && <MovieReviewSection reviews={reviews} />}
+
+          {reviewsLoading ? (
+            <View className="mt-6">
+              <UISkeleton width={120} height={18} radius={8} />
+              <View className="mt-2">
+                <UISkeleton height={60} radius={8} />
+              </View>
+            </View>
+          ) : reviews.length > 0 ? (
+            <MovieReviewSection reviews={reviews} />
+          ) : null}
 
           {/* Where to watch */}
-          {providers && (
+          {providersLoading ? (
+            <View className="mt-6">
+              <UISkeleton width={140} height={18} radius={8} />
+              <View className="mt-3 flex-row flex-wrap">
+                {[...Array(4)].map((_, i) => (
+                  <View key={i} className="mr-2 mb-2">
+                    <UISkeleton width={80} height={28} radius={999} />
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : providers ? (
             <MovieWatchProvidersSection providers={providers} />
-          )}
+          ) : null}
 
           {/* Watchlist + trailer buttons */}
           <MovieActionButton
@@ -453,7 +486,25 @@ export default function MovieDetailsScreen() {
         </UICard>
 
         {/* Cast */}
-        {cast.length > 0 && (
+        {castLoading ? (
+          <>
+            <UILineDivider />
+
+            <Text className="mb-3 text-lg font-semibold text-slate-50">
+              Cast
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="mb-2"
+            >
+              {[...Array(8)].map((_, i) => (
+                <CastAvatarSkeleton key={i} />
+              ))}
+            </ScrollView>
+          </>
+        ) : cast.length > 0 ? (
           <>
             <UILineDivider />
 
@@ -488,15 +539,26 @@ export default function MovieDetailsScreen() {
               })}
             </ScrollView>
           </>
-        )}
+        ) : null}
 
         {/* Similar titles */}
-        {similar.length > 0 && (
+        {similarLoading ? (
           <>
             <UILineDivider />
+            <Text className="mb-3 text-lg font-semibold text-slate-50">
+              Similar titles
+            </Text>
+            <MovieSimilarCarouselSkeleton />
+          </>
+        ) : similar.length > 0 ? (
+          <>
+            <UILineDivider />
+            <Text className="mb-3 text-lg font-semibold text-slate-50">
+              Similar titles
+            </Text>
             <MovieSimilarCarousel movies={similar} />
           </>
-        )}
+        ) : null}
 
         <View style={{ height: 32 }} />
       </ScrollView>
