@@ -1,5 +1,3 @@
-// Home screen: mood-based suggestions, AI picks, and quick access to watchlist flows.
-
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   View,
@@ -7,6 +5,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useState, useMemo } from "react";
 import { router } from "expo-router";
@@ -19,6 +18,16 @@ import { WatchContextSelector } from "@/src/components/WatchContextSelector";
 import { MoodSelector } from "@/src/components/MoodSelector";
 import { MovieCard } from "@/src/components/MovieCard";
 import { useAiRecommendations } from "@/src/hooks/useAiRecommendations";
+import { SwipeableRow } from "@/src/components/ui/SwipeableRow";
+import { UIDialog } from "@/src/components/ui/UIDialog";
+
+import { TMDB_CONFIG } from "@/src/config/tmdb";
+import { auth } from "@/src/firebaseConfig";
+import {
+  addFavorite,
+  removeFavorite,
+  FavoriteMovie,
+} from "@/src/services/favoritesService";
 
 const ACCENT = "#f97316";
 
@@ -32,6 +41,13 @@ export default function HomeScreen() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loadingMovies, setLoadingMovies] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Undo dialog state
+  const [undoMovie, setUndoMovie] = useState<Movie | null>(null);
+  const [undoVisible, setUndoVisible] = useState(false);
+
+  // Local “just added on this screen” ids → controls filled icon
+  const [locallyAddedIds, setLocallyAddedIds] = useState<string[]>([]);
 
   // AI-powered recommendations from the custom hook
   const {
@@ -49,7 +65,6 @@ export default function HomeScreen() {
       return matchesContext && matchesMood;
     });
 
-    // Prefer exact mood/context matches, otherwise fall back to context-only
     if (filtered.length > 0) return filtered;
 
     return MOCK_MOVIES.filter((movie) =>
@@ -62,7 +77,83 @@ export default function HomeScreen() {
     router.replace("/signin");
   };
 
-  // Fetch TMDB-based mood suggestions (override mock recommendations)
+  // Swipe action → add movie to watchlist + show undo dialog
+  const handleAddToWatchlist = async (movie: Movie) => {
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      Alert.alert(
+        "Sign in required",
+        "You need to be signed in to add movies to your watchlist.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Go to sign in",
+            onPress: () => router.replace("/signin"),
+          },
+        ]
+      );
+      return;
+    }
+
+    const payload: FavoriteMovie = {
+      movieId: movie.id,
+      title: movie.title,
+      posterUrl: movie.posterPath
+        ? `${TMDB_CONFIG.imageBaseUrl}${movie.posterPath}`
+        : null,
+      overview: movie.description,
+    };
+
+    try {
+      await addFavorite(currentUser.uid, payload);
+
+      // mark as added for filled icon
+      setLocallyAddedIds((prev) =>
+        prev.includes(movie.id) ? prev : [...prev, movie.id]
+      );
+
+      // show undo dialog
+      setUndoMovie(movie);
+      setUndoVisible(true);
+    } catch (err) {
+      console.log("Error adding favorite from home:", err);
+      Alert.alert(
+        "Error",
+        "Could not add this movie to your watchlist. Please try again."
+      );
+    }
+  };
+
+  const handleUndoAdd = async () => {
+    if (!undoMovie) return;
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setUndoVisible(false);
+      setUndoMovie(null);
+      return;
+    }
+
+    try {
+      await removeFavorite(currentUser.uid, undoMovie.id);
+      // unmark for icon
+      setLocallyAddedIds((prev) =>
+        prev.filter((id) => id !== undoMovie.id)
+      );
+    } catch (err) {
+      console.log("Error undoing favorite:", err);
+    } finally {
+      setUndoVisible(false);
+      setUndoMovie(null);
+    }
+  };
+
+  // Just close dialog, keep added state as-is
+  const handleDismissDialog = () => {
+    setUndoVisible(false);
+    setUndoMovie(null);
+  };
+
   const handleRefresh = async () => {
     try {
       setLoadingMovies(true);
@@ -78,7 +169,6 @@ export default function HomeScreen() {
     }
   };
 
-  // If remote movies are loaded, show them; otherwise use local recommendations
   const displayedMovies = movies.length > 0 ? movies : recommendations;
 
   return (
@@ -120,7 +210,6 @@ export default function HomeScreen() {
             Who & mood
           </Text>
 
-          {/* Watch context (solo, friends, partner) */}
           <View className="mb-4">
             <WatchContextSelector
               value={watchContext}
@@ -128,12 +217,10 @@ export default function HomeScreen() {
             />
           </View>
 
-          {/* Mood selector (chill, intense, etc.) */}
           <View className="mb-5">
             <MoodSelector value={mood} onChange={setMood} />
           </View>
 
-          {/* Fetch fresh suggestions from TMDB */}
           <Pressable
             onPress={handleRefresh}
             className="rounded-full bg-emerald-600 px-4 py-3.5 shadow-lg shadow-emerald-900/50"
@@ -228,12 +315,32 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* Swipeable movie list */}
         <View className="space-y-4">
           {displayedMovies.map((movie) => (
-            <MovieCard key={movie.id} movie={movie} />
+            <SwipeableRow
+              key={movie.id}
+              onPrimaryAction={() => handleAddToWatchlist(movie)}
+              active={locallyAddedIds.includes(movie.id)}
+            >
+              <MovieCard movie={movie} />
+            </SwipeableRow>
           ))}
         </View>
       </ScrollView>
+
+      {/* Undo dialog overlay */}
+      <UIDialog
+        visible={undoVisible}
+        title="Added to watchlist"
+        message={
+          undoMovie ? `"${undoMovie.title}" was added to your watchlist.` : ""
+        }
+        primaryLabel="Undo"
+        onPrimary={handleUndoAdd}
+        secondaryLabel="Close"
+        onSecondary={handleDismissDialog}
+      />
     </SafeAreaView>
   );
 }

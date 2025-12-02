@@ -1,14 +1,8 @@
-/**
- * MovieSummaryCard
- * AI summary section for the movie details screen.
- * Shows CTA button, loading state, error message and AI summary text.
- */
-
 import React from "react";
 import { View, Text } from "react-native";
-import { UIButton } from "./UIButton";
+import { UIButton } from "@/src/components/ui/UIButton";
 
-type MovieSummaryCardProps = {
+type Props = {
   summary: string | null;
   loading: boolean;
   error: string | null;
@@ -20,7 +14,7 @@ export function MovieSummaryCard({
   loading,
   error,
   onAskAI,
-}: MovieSummaryCardProps) {
+}: Props) {
   return (
     <View className="mt-4 rounded-2xl border border-emerald-700/50 bg-emerald-900/20 p-3">
       <View className="flex-row items-center justify-between">
@@ -29,10 +23,11 @@ export function MovieSummaryCard({
             AI summary
           </Text>
           <Text className="mt-1 text-xs text-emerald-200/80">
-            Let StreamCompass AI condense this movie into a quick, spoiler-light
-            summary.
+            Let StreamCompass AI condense this movie into a quick,
+            spoiler-light summary.
           </Text>
         </View>
+
         <UIButton
           label="Ask AI"
           onPress={onAskAI}
@@ -47,9 +42,7 @@ export function MovieSummaryCard({
       </View>
 
       {error && (
-        <Text className="mt-2 text-xs text-red-400">
-          {error}
-        </Text>
+        <Text className="mt-2 text-xs text-red-400">{error}</Text>
       )}
 
       {summary && (

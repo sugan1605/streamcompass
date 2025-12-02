@@ -1,10 +1,9 @@
 import { View, Text, ScrollView, Alert, Animated } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState, useRef } from "react";
-import { TMDB_CONFIG } from "@/src/config/tmdb";
 
+import { TMDB_CONFIG } from "@/src/config/tmdb";
 import { MOCK_MOVIES } from "@/src/data/mockMovies";
 import { Movie, WatchProviders, Review } from "@/src/types/movies";
 import {
@@ -448,7 +447,6 @@ export default function MovieDetailsScreen() {
           />
 
           {/* Reviews */}
-
           {reviewsLoading ? (
             <View className="mt-6">
               <UISkeleton width={120} height={18} radius={8} />
@@ -489,11 +487,9 @@ export default function MovieDetailsScreen() {
         {castLoading ? (
           <>
             <UILineDivider />
-
             <Text className="mb-3 text-lg font-semibold text-slate-50">
               Cast
             </Text>
-
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -507,11 +503,9 @@ export default function MovieDetailsScreen() {
         ) : cast.length > 0 ? (
           <>
             <UILineDivider />
-
             <Text className="mb-3 text-lg font-semibold text-slate-50">
               Cast
             </Text>
-
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
