@@ -1,10 +1,9 @@
 /**
  * UIButton
  * Main button component for actions and CTAs.
- * Supports solid, outline, ghost, and gradient variants.
+ * Supports solid, outline, ghost, danger, and gradient variants.
  * Optional loading spinner + haptic feedback.
  */
-
 
 import React, { useRef } from "react";
 import type { ReactNode } from "react";
@@ -28,7 +27,7 @@ export type UIButtonProps = {
   loading?: boolean;
   disabled?: boolean;
   leftIcon?: ReactNode;
-  variant?: "primary" | "outline" | "ghost" | "gradient";
+  variant?: "primary" | "outline" | "ghost" | "gradient" | "danger";
   gradientColors?: [string, string];
   className?: string;
   hapticStyle?: HapticStyle;
@@ -87,6 +86,7 @@ export function UIButton({
 
   const baseClass =
     "h-12 flex-row items-center justify-center rounded-full px-4 active:opacity-80";
+
   let variantClass = "";
 
   switch (variant) {
@@ -101,6 +101,10 @@ export function UIButton({
       break;
     case "gradient":
       variantClass = "overflow-hidden";
+      break;
+    case "danger":
+      // Red solid button for destructive/undo actions.
+      variantClass = "bg-red-600";
       break;
   }
 

@@ -1,3 +1,5 @@
+// Home screen: mood-based picks, AI suggestions and swipe-to-save watchlist.
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   View,
@@ -7,17 +9,19 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { router } from "expo-router";
 
 import { useAuth } from "@/src/context/AuthContext";
 import { fetchMoviesForMood } from "@/src/services/tmdb";
 import { WatchContext, Mood, Movie } from "@/src/types/movies";
 import { MOCK_MOVIES } from "@/src/data/mockMovies";
+
 import { WatchContextSelector } from "@/src/components/WatchContextSelector";
 import { MoodSelector } from "@/src/components/MoodSelector";
 import { MovieCard } from "@/src/components/MovieCard";
 import { useAiRecommendations } from "@/src/hooks/useAiRecommendations";
+
 import { SwipeableRow } from "@/src/components/ui/SwipeableRow";
 import { UIDialog } from "@/src/components/ui/UIDialog";
 
@@ -34,22 +38,26 @@ const ACCENT = "#f97316";
 export default function HomeScreen() {
   const { user, logout } = useAuth();
 
+  // Who is watching? (solo, partner, friends, etc.)
   const [watchContext, setWatchContext] = useState<WatchContext>("solo");
+  // Desired mood (chill, intense, random, etc.)
   const [mood, setMood] = useState<Mood>("chill");
+  // Timestamp for when TMDB list was last refreshed.
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
 
+  // Movies fetched from TMDB based on mood.
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loadingMovies, setLoadingMovies] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Undo dialog state
+  // State for undo dialog and which movie was just added.
   const [undoMovie, setUndoMovie] = useState<Movie | null>(null);
   const [undoVisible, setUndoVisible] = useState(false);
 
-  // Local “just added on this screen” ids → controls filled icon
+  // Tracks movies added locally in this session (for filled icon on swipe button).
   const [locallyAddedIds, setLocallyAddedIds] = useState<string[]>([]);
 
-  // AI-powered recommendations from the custom hook
+  // AI-powered recommendations (from custom hook).
   const {
     movies: aiMovies,
     loading: aiLoading,
@@ -57,7 +65,7 @@ export default function HomeScreen() {
     reload: reloadAi,
   } = useAiRecommendations();
 
-  // Local fallback recommendations derived from mock data
+  // Local fallback recommendations from mock data.
   const recommendations: Movie[] = useMemo(() => {
     const filtered = MOCK_MOVIES.filter((movie) => {
       const matchesContext = movie.recommendedFor.includes(watchContext);
@@ -65,6 +73,7 @@ export default function HomeScreen() {
       return matchesContext && matchesMood;
     });
 
+    // Prefer exact matches, but fall back to context-only if needed.
     if (filtered.length > 0) return filtered;
 
     return MOCK_MOVIES.filter((movie) =>
@@ -72,16 +81,18 @@ export default function HomeScreen() {
     );
   }, [watchContext, mood]);
 
+  // Helper: log out and go back to sign in screen.
   const handleLogout = async () => {
     await logout();
     router.replace("/signin");
   };
 
-  // Swipe action → add movie to watchlist + show undo dialog
+  // Handles swipe action → add movie to watchlist + show undo dialog.
   const handleAddToWatchlist = async (movie: Movie) => {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
+      // Ask user to sign in if they are not authenticated.
       Alert.alert(
         "Sign in required",
         "You need to be signed in to add movies to your watchlist.",
@@ -96,6 +107,7 @@ export default function HomeScreen() {
       return;
     }
 
+    // Payload for favorites in Firestore.
     const payload: FavoriteMovie = {
       movieId: movie.id,
       title: movie.title,
@@ -106,14 +118,15 @@ export default function HomeScreen() {
     };
 
     try {
+      // Persist favorite to backend.
       await addFavorite(currentUser.uid, payload);
 
-      // mark as added for filled icon
+      // Mark as added locally for icon fill.
       setLocallyAddedIds((prev) =>
         prev.includes(movie.id) ? prev : [...prev, movie.id]
       );
 
-      // show undo dialog
+      // Show undo dialog with this movie.
       setUndoMovie(movie);
       setUndoVisible(true);
     } catch (err) {
@@ -125,6 +138,7 @@ export default function HomeScreen() {
     }
   };
 
+  // Handles tapping the "Undo" button in the dialog.
   const handleUndoAdd = async () => {
     if (!undoMovie) return;
     const currentUser = auth.currentUser;
@@ -135,25 +149,29 @@ export default function HomeScreen() {
     }
 
     try {
+      // Remove from favorites in backend.
       await removeFavorite(currentUser.uid, undoMovie.id);
-      // unmark for icon
+
+      // Remove from local added state.
       setLocallyAddedIds((prev) =>
         prev.filter((id) => id !== undoMovie.id)
       );
     } catch (err) {
       console.log("Error undoing favorite:", err);
     } finally {
+      // Close dialog and clear movie.
       setUndoVisible(false);
       setUndoMovie(null);
     }
   };
 
-  // Just close dialog, keep added state as-is
+  // Handles closing the dialog without undoing.
   const handleDismissDialog = () => {
     setUndoVisible(false);
     setUndoMovie(null);
   };
 
+  // Fetch TMDB movies for the selected mood.
   const handleRefresh = async () => {
     try {
       setLoadingMovies(true);
@@ -169,7 +187,20 @@ export default function HomeScreen() {
     }
   };
 
+  // If TMDB movies exist, use them; otherwise, fallback to mock recommendations.
   const displayedMovies = movies.length > 0 ? movies : recommendations;
+
+  // Auto-dismiss undo dialog after 2 seconds if user does nothing.
+  useEffect(() => {
+    if (!undoVisible) return;
+
+    const timer = setTimeout(() => {
+      setUndoVisible(false);
+      setUndoMovie(null);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [undoVisible]);
 
   return (
     <SafeAreaView className="flex-1 bg-slate-950">
@@ -181,7 +212,7 @@ export default function HomeScreen() {
           paddingBottom: 120,
         }}
       >
-        {/* Header card */}
+        {/* Header card with app name and sign out. */}
         <View className="mb-4 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-4 shadow-lg shadow-black/40">
           <View className="flex-row items-start justify-between">
             <View className="flex-1 pr-4">
@@ -204,12 +235,13 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Who & mood card */}
+        {/* Who & mood selection card. */}
         <View className="mb-5 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-5 shadow-lg shadow-black/40">
           <Text className="mb-3 text-sm font-semibold tracking-wide text-slate-200">
             Who & mood
           </Text>
 
+          {/* Watch context selector (solo, partner, friends). */}
           <View className="mb-4">
             <WatchContextSelector
               value={watchContext}
@@ -217,10 +249,12 @@ export default function HomeScreen() {
             />
           </View>
 
+          {/* Mood selector (chill, intense, etc.). */}
           <View className="mb-5">
             <MoodSelector value={mood} onChange={setMood} />
           </View>
 
+          {/* Fetch fresh suggestions from TMDB. */}
           <Pressable
             onPress={handleRefresh}
             className="rounded-full bg-emerald-600 px-4 py-3.5 shadow-lg shadow-emerald-900/50"
@@ -230,6 +264,7 @@ export default function HomeScreen() {
             </Text>
           </Pressable>
 
+          {/* Show last refresh time if available. */}
           {lastRefreshedAt && (
             <Text className="mt-2 text-[11px] text-slate-400">
               Suggestions refreshed at {lastRefreshedAt.toLocaleTimeString()}
@@ -237,7 +272,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Soft CTA → AI Picks tab */}
+        {/* Soft CTA → AI Picks tab. */}
         <Pressable
           onPress={() => router.push("/ai")}
           className="mb-3 self-start rounded-full border border-violet-500/70 bg-violet-600/15 px-4 py-2 shadow shadow-violet-900/50"
@@ -247,7 +282,7 @@ export default function HomeScreen() {
           </Text>
         </Pressable>
 
-        {/* AI Picks summary card */}
+        {/* AI Picks summary card. */}
         <View className="mb-6 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-4 shadow-lg shadow-black/40">
           <View className="mb-3 flex-row items-center justify-between">
             <View className="flex-1 pr-4">
@@ -259,6 +294,7 @@ export default function HomeScreen() {
               </Text>
             </View>
 
+            {/* Manually refresh AI picks. */}
             <Pressable
               onPress={reloadAi}
               className="rounded-full bg-slate-800 px-3 py-1.5"
@@ -269,6 +305,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
+          {/* AI loading state. */}
           {aiLoading && (
             <View className="mt-1 flex-row items-center">
               <ActivityIndicator color={ACCENT} />
@@ -278,10 +315,12 @@ export default function HomeScreen() {
             </View>
           )}
 
+          {/* AI error state. */}
           {!aiLoading && aiError && (
             <Text className="mt-1 text-xs text-red-400">{aiError}</Text>
           )}
 
+          {/* AI empty state (no data yet). */}
           {!aiLoading && !aiError && aiMovies.length === 0 && (
             <Text className="mt-1 text-xs text-slate-400">
               Add some favorites to your watchlist and I’ll start tailoring picks
@@ -289,6 +328,7 @@ export default function HomeScreen() {
             </Text>
           )}
 
+          {/* AI results list. */}
           {!aiLoading && !aiError && aiMovies.length > 0 && (
             <View className="mt-3 space-y-3">
               {aiMovies.map((movie) => (
@@ -298,7 +338,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Tonight's picks (TMDB or mock fallback) */}
+        {/* Section header for tonight's picks. */}
         <View className="mb-3">
           <Text className="text-lg font-semibold text-slate-50">
             Tonight’s picks
@@ -315,7 +355,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Swipeable movie list */}
+        {/* Swipeable list of movies (TMDB or fallback). */}
         <View className="space-y-4">
           {displayedMovies.map((movie) => (
             <SwipeableRow
@@ -329,7 +369,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Undo dialog overlay */}
+      {/* Undo dialog overlay for recently added movie. */}
       <UIDialog
         visible={undoVisible}
         title="Added to watchlist"
