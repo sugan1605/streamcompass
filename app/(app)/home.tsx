@@ -197,7 +197,7 @@ export default function HomeScreen() {
     const timer = setTimeout(() => {
       setUndoVisible(false);
       setUndoMovie(null);
-    }, 2000);
+    }, 4000);
 
     return () => clearTimeout(timer);
   }, [undoVisible]);
