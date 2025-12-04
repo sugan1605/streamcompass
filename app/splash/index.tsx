@@ -4,8 +4,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 
-import { useAuth } from "../src/context/AuthContext";
-import { useTheme } from "../src/context/ThemeContext";
+import { useAuth } from "../../src/context/AuthContext";
+import { useTheme } from "../../src/context/ThemeContext";
 
 // 🔹 Oppdater path hvis logo ligger et annet sted
 import Logo from "../assets/images/splash.png";
