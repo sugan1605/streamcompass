@@ -1,6 +1,6 @@
 // Displays user's saved watchlist (Firestore) with iOS-style swipe-to-delete.
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Pressable,
   Alert,
   Animated,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -35,7 +36,10 @@ export default function FavoritesScreen() {
   const [favorites, setFavorites] = useState<FavoriteMovie[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load user's watchlist from Firestore
+  // Search text for filtering the watchlist
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Loads the current user's watchlist from Firestore
   useEffect(() => {
     const loadFavorites = async () => {
       if (!user) {
@@ -58,7 +62,17 @@ export default function FavoritesScreen() {
     loadFavorites();
   }, [user]);
 
-  // Remove movie from Firestore + local state
+  // Filters favorites based on title and searchQuery
+  const filteredFavorites = useMemo(() => {
+    if (!searchQuery.trim()) return favorites;
+
+    const q = searchQuery.trim().toLowerCase();
+    return favorites.filter((fav) =>
+      (fav.title ?? "").toLowerCase().includes(q)
+    );
+  }, [favorites, searchQuery]);
+
+  // Removes a movie from Firestore and local state
   const handleRemove = async (movieId: FavoriteMovie["movieId"]) => {
     if (!user) return;
 
@@ -71,12 +85,12 @@ export default function FavoritesScreen() {
     }
   };
 
-  // Light/Dark mode colors
+  // Basic colors for light/dark modes
   const bgScreen = isDark ? "bg-slate-950" : "bg-slate-50";
   const cardBg = isDark ? "bg-slate-900/90" : "bg-white";
   const subtleText = isDark ? "text-slate-400" : "text-slate-500";
 
-  // Minimal Movie model for MovieCard
+  // Maps a FavoriteMovie into a minimal MovieCard shape
   const mapToMovie = (fav: FavoriteMovie): Movie => ({
     id: fav.movieId,
     title: fav.title,
@@ -91,23 +105,33 @@ export default function FavoritesScreen() {
     maturityLabel: undefined,
   });
 
-  // ————————————————————————————————————————————————
-  // Swipe-to-delete right-side action (iOS style)
-  // ————————————————————————————————————————————————
-  const RightAction = ({
-    movieId,
-  }: {
-    movieId: FavoriteMovie["movieId"];
-  }) => {
+  // Right-side swipe action with small feedback animation
+  const RightAction = ({ movieId }: { movieId: FavoriteMovie["movieId"] }) => {
     const opacity = useRef(new Animated.Value(1)).current;
 
     const onPress = () => {
-      // Simple feedback animation → then delete
+      // Simple opacity pulse before deleting
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.2, duration: 100, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 100, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.2, duration: 100, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 100, useNativeDriver: true }),
+        Animated.timing(opacity, {
+          toValue: 0.2,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.2,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
       ]).start(() => handleRemove(movieId));
     };
 
@@ -125,13 +149,10 @@ export default function FavoritesScreen() {
     );
   };
 
+  // Helper to inject the right-side swipe action
   const renderRightActions = (movieId: FavoriteMovie["movieId"]) => (
     <RightAction movieId={movieId} />
   );
-
-  // ————————————————————————————————————————————————
-  // UI
-  // ————————————————————————————————————————————————
 
   return (
     <SafeAreaView
@@ -146,7 +167,7 @@ export default function FavoritesScreen() {
           paddingBottom: 40,
         }}
       >
-        {/* Header */}
+        {/* Header card with title and quick link back to Home */}
         <View className="mb-6">
           <View
             className={[
@@ -157,7 +178,10 @@ export default function FavoritesScreen() {
             ].join(" ")}
           >
             <View className="flex-1 pr-4">
-              <Text className="text-[24px] font-extrabold" style={{ color: colors.text }}>
+              <Text
+                className="text-[24px] font-extrabold"
+                style={{ color: colors.text }}
+              >
                 Watchlist
               </Text>
               <Text
@@ -172,12 +196,34 @@ export default function FavoritesScreen() {
               onPress={() => router.push("/(app)/home")}
               className="rounded-full border border-slate-400/60 bg-slate-900 px-3 py-1.5 shadow-md shadow-black/40"
             >
-              <Text className="text-[11px] font-semibold text-slate-50">Home</Text>
+              <Text className="text-[11px] font-semibold text-slate-50">
+                Home
+              </Text>
             </Pressable>
           </View>
         </View>
 
-        {/* Loading */}
+        {/* Search bar for filtering favorites */}
+        {favorites.length > 0 && (
+          <View className="mb-4">
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search in your watchlist…"
+              placeholderTextColor={isDark ? "#64748b" : "#94a3b8"}
+              className={`h-11 rounded-full px-4 text-sm ${
+                isDark
+                  ? "bg-slate-900/80 text-slate-100 border border-slate-800"
+                  : "bg-slate-100 text-slate-900 border border-slate-300/80"
+              }`}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+          </View>
+        )}
+
+        {/* Loading state while fetching favorites */}
         {loading && (
           <View className="mt-10 items-center">
             <ActivityIndicator />
@@ -187,7 +233,7 @@ export default function FavoritesScreen() {
           </View>
         )}
 
-        {/* Empty state */}
+        {/* Empty state when user has no saved favorites */}
         {!loading && favorites.length === 0 && (
           <View
             className={`mt-8 rounded-3xl px-5 py-6 shadow-lg shadow-black/40 ${cardBg}`}
@@ -196,7 +242,8 @@ export default function FavoritesScreen() {
               Your watchlist is empty
             </Text>
             <Text className="mt-2 text-sm text-slate-400">
-              Browse titles on Home or try AI Picks. Any movie you add will appear here.
+              Browse titles on Home or try AI Picks. Any movie you add will
+              appear here.
             </Text>
 
             <View className="mt-4 flex-row gap-3">
@@ -213,26 +260,38 @@ export default function FavoritesScreen() {
                 onPress={() => router.push("/ai")}
                 className="flex-1 items-center justify-center rounded-full bg-indigo-600 px-4 py-2 shadow-md shadow-indigo-900/40"
               >
-                <Text className="text-xs font-semibold text-white">Try AI Picks</Text>
+                <Text className="text-xs font-semibold text-white">
+                  Try AI Picks
+                </Text>
               </Pressable>
             </View>
           </View>
         )}
 
-        {/* Favorites list with swipe */}
+        {/* Favorites list with swipe + search filter */}
         {!loading && favorites.length > 0 && (
           <View className="space-y-3">
-            {favorites.map((fav) => (
-              <View key={String(fav.movieId)} className="overflow-hidden rounded-3xl">
-                <Swipeable
-                  renderRightActions={() => renderRightActions(fav.movieId)}
-                  overshootRight={false}
-                  friction={2}
+            {filteredFavorites.length === 0 ? (
+              // Message when search has no matching results
+              <Text className={`mt-2 text-xs ${subtleText}`}>
+                No titles match your search.
+              </Text>
+            ) : (
+              filteredFavorites.map((fav) => (
+                <View
+                  key={String(fav.movieId)}
+                  className="overflow-hidden rounded-3xl"
                 >
-                  <MovieCard movie={mapToMovie(fav)} />
-                </Swipeable>
-              </View>
-            ))}
+                  <Swipeable
+                    renderRightActions={() => renderRightActions(fav.movieId)}
+                    overshootRight={false}
+                    friction={2}
+                  >
+                    <MovieCard movie={mapToMovie(fav)} />
+                  </Swipeable>
+                </View>
+              ))
+            )}
           </View>
         )}
       </ScrollView>
