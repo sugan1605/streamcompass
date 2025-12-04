@@ -43,6 +43,7 @@ import {
 } from "@/src/components/ui/MovieSimilarCarousel";
 import { MovieReviewSection } from "@/src/components/ui/MovieReviewSection";
 import { UISkeleton } from "@/src/components/ui/UISkeleton";
+import { UIDialog } from "@/src/components/ui/UIDialog";
 
 export default function MovieDetailsScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
@@ -72,6 +73,9 @@ export default function MovieDetailsScreen() {
   const [providersLoading, setProvidersLoading] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Dialog for confirm removal from watchlist
+  const [removeDialogVisible, setRemoveDialogVisible] = useState(false);
 
   // Fade-in effect for hero poster
   const posterOpacity = useRef(new Animated.Value(0)).current;
@@ -267,6 +271,12 @@ export default function MovieDetailsScreen() {
 
     if (!movie) return;
 
+    // If already in watchlist -> open confirm dialog instead of removing immediately
+    if (isFavorite) {
+      setRemoveDialogVisible(true);
+      return;
+    }
+
     const payload: FavoriteMovie = {
       movieId: movie.id,
       title: movie.title,
@@ -276,16 +286,10 @@ export default function MovieDetailsScreen() {
 
     try {
       setFavLoading(true);
-
-      if (!isFavorite) {
-        await addFavorite(user.uid, payload);
-        setIsFavorite(true);
-      } else {
-        await removeFavorite(user.uid, movie.id);
-        setIsFavorite(false);
-      }
-    } catch (err) {
-      console.log("Error updating favorite:", err);
+      await addFavorite(user.uid, payload);
+      setIsFavorite(true);
+    } catch (e) {
+      console.log("Error updating favorite:", e);
       Alert.alert(
         "Error",
         "Could not update your watchlist. Please try again."
@@ -293,6 +297,34 @@ export default function MovieDetailsScreen() {
     } finally {
       setFavLoading(false);
     }
+  };
+
+  const handleConfirmRemoveFavorite = async () => {
+    const user = auth.currentUser;
+
+    if (!user || !movie) {
+      setRemoveDialogVisible(false);
+      return;
+    }
+
+    try {
+      setFavLoading(true);
+      await removeFavorite(user.uid, movie.id);
+      setIsFavorite(false);
+    } catch (e) {
+      console.log("Error removing favorites", e);
+      Alert.alert(
+        "Error",
+        "Could not remove this movie from your watchlist. Please try again."
+      );
+    } finally {
+      setFavLoading(false);
+      setRemoveDialogVisible(false);
+    }
+  };
+
+  const handleCancelRemoveFavorite = () => {
+    setRemoveDialogVisible(false);
   };
 
   // ---------- Render states ----------
@@ -373,7 +405,7 @@ export default function MovieDetailsScreen() {
           </Text>
           <UIButton
             label="Go back home"
-            onPress={() => router.replace("/home")}
+            onPress={() => router.replace("/(app)/home")}
             variant="outline"
             hapticStyle="light"
             className="px-5"
@@ -556,6 +588,18 @@ export default function MovieDetailsScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* Confirm remove from watchlist dialog */}
+
+      <UIDialog
+        visible={removeDialogVisible}
+        title="Remove from watchlist?"
+        message="This will remove this movie from your watchlist. You can always add it again later."
+        primaryLabel="Remove"
+        onPrimary={handleConfirmRemoveFavorite}
+        secondaryLabel="Cancel"
+        onSecondary={handleCancelRemoveFavorite}
+      />
     </SafeAreaView>
   );
 }

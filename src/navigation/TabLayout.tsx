@@ -1,52 +1,56 @@
+// src/navigation/TabLayout.tsx
+
 import React from "react";
 import { Tabs } from "expo-router";
 
 import { useTheme } from "@/src/context/ThemeContext";
-import { CustomTabBar } from "@/src/components/ui/CustomTabBar";
+import { CustomTabBar } from "@/src/navigation/CustomTabBar";
 
 export default function TabLayout() {
   const { colors } = useTheme();
 
   return (
     <Tabs
-      // Laget en custom flytende tabbar
+      // Custom floating tab bar
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: false, // vi bruker kun ikoner
+        tabBarShowLabel: false, // we only use icons
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.tabBarInactive,
       }}
     >
+      {/* ORDER HERE = ORDER IN TAB BAR */}
+
       <Tabs.Screen
-        name="home"
+        name="home/index"
         options={{
           title: "Home",
         }}
       />
 
       <Tabs.Screen
-        name="ai"
+        name="ai/index"
         options={{
           title: "AI Picks",
         }}
       />
 
       <Tabs.Screen
-        name="favorites"
+        name="watchlist/index"
         options={{
           title: "Watchlist",
         }}
       />
 
       <Tabs.Screen
-        name="settings"
+        name="settings/index"
         options={{
           title: "Settings",
         }}
       />
 
-      {/* detaljsider skal ikke ha egen tab */}
+      {/* Detail screens should NOT appear as tabs */}
       <Tabs.Screen name="movie/[id]" options={{ href: null }} />
       <Tabs.Screen name="person/[id]" options={{ href: null }} />
     </Tabs>

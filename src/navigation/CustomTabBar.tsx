@@ -14,14 +14,14 @@ import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/src/context/ThemeContext";
 import { useSoundSettings } from "@/src/context/SoundContext";
-import { TabButton } from "./TabButton";
+import { TabButton } from "../components/ui/TabButton";
 
 // Ikon-map for hver tab-route
 const ICON_MAP: Record<string, React.ElementType> = {
-  home: House,
-  ai: Sparkle,
-  favorites: BookmarkSimple,
-  settings: GearSix,
+  "home/index": House,
+  "ai/index": Sparkle,
+  "watchlist/index": BookmarkSimple,
+  "settings/index": GearSix,
 };
 
 export function CustomTabBar({
