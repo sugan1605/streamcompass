@@ -8,7 +8,7 @@ import { useAuth } from "../../src/context/AuthContext";
 import { useTheme } from "../../src/context/ThemeContext";
 
 // 🔹 Oppdater path hvis logo ligger et annet sted
-import Logo from "../assets/images/splash.png";
+import Logo from "@/assets/images/splash.png";
 
 export default function SplashScreen() {
   const { user, loading } = useAuth();
