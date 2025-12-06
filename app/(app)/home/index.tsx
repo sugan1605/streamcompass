@@ -226,6 +226,10 @@ export default function HomeScreen() {
   const listToRender =
     searchQuery.trim().length > 0 ? searchResults : displayedMovies;
 
+  // Helper function to tell if its true that the user is actively searching
+
+  const isSearching = searchQuery.trim().length > 0;
+
   // Auto-dismiss undo dialog after 2 seconds if user does nothing.
   useEffect(() => {
     if (!undoVisible) return;
@@ -374,17 +378,19 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Section header for tonight's picks. */}
+        {/* Section header for tonight's picks / search results. */}
         <View className="mb-3">
           <Text className="text-lg font-semibold text-slate-50">
-            Tonight’s picks
+            {isSearching ? "Search results" : "Tonight’s picks"}
           </Text>
 
-          {loadingMovies && (
+          {loadingMovies && !isSearching && (
             <Text className="mt-1 text-xs text-slate-400">Loading movies…</Text>
           )}
 
-          {error && <Text className="mt-1 text-xs text-red-400">{error}</Text>}
+          {error && !isSearching && (
+            <Text className="mt-1 text-xs text-red-400">{error}</Text>
+          )}
         </View>
 
         {/* Search bar for title search (TMDB) */}
@@ -424,9 +430,10 @@ export default function HomeScreen() {
               No results found for "{searchQuery.trim()}",
             </Text>
           )}
-        {/* Swipeable list of movies (TMDB or fallback). */}
+
+        {/* Swipeable list of movies (search results OR tonight’s picks). */}
         <View className="space-y-4">
-          {displayedMovies.map((movie) => (
+          {listToRender.map((movie) => (
             <SwipeableRow
               key={movie.id}
               onPrimaryAction={() => handleAddToWatchlist(movie)}

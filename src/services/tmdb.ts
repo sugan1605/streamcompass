@@ -13,6 +13,9 @@ import {
   TmdbMovieDetails,
 } from "../types/tmdb";
 
+// Shared mapper for TMDB → Movie
+import { mapBasicTmdbMovie } from "../utils/tmdbMappers";
+
 // Mood -> TMDB genre IDs (simple mapping for now)
 const MOOD_TO_GENRE_IDS: Partial<Record<Mood, number[]>> = {
   funny: [35], // Comedy
@@ -23,7 +26,7 @@ const MOOD_TO_GENRE_IDS: Partial<Record<Mood, number[]>> = {
   random: [], // no specific genres
 };
 
-/* SEARCH MOVIES BY TITLES FROM TMDB (BASIC) -------------------------------------------------- */
+/* SEARCH MOVIES BY TITLE (BASIC) ---------------------------------------- */
 
 export async function searchMoviesByTitle(query: string): Promise<Movie[]> {
   if (!query.trim()) return [];
@@ -41,26 +44,15 @@ export async function searchMoviesByTitle(query: string): Promise<Movie[]> {
     throw new Error("Failed to search movies");
   }
 
-  const data = await res.json();
+  const data: TmdbResponse = await res.json();
 
-  return (data.results ?? []).map(
-    (item: any): Movie => ({
-      id: String(item.id),
-      title: item.title ?? "Untitled",
-      description: item.overview ?? "",
-      posterPath: item.poster_path ?? null,
-      genres: [], // can be enriched if you want
-      moods: [],
-      recommendedFor: ["solo", "friends", "partner"], // safe default
-      year: item.release_date ? Number(item.release_date.slice(0, 4)) : 0,
-      runtimeMinutes: 0,
-      rating: item.vote_average ? Number(item.vote_average) : 0,
-      maturityLabel: undefined,
-    })
+  // Use shared mapper for search results
+  return (data.results ?? []).map((item: TmdbMovieResult) =>
+    mapBasicTmdbMovie(item)
   );
 }
 
-/* WATCH PROVIDERS --------------------------------------------------------- */
+/* WATCH PROVIDERS ------------------------------------------------------- */
 
 export async function fetchWatchProviders(
   id: string,
@@ -112,7 +104,7 @@ export async function fetchWatchProviders(
   };
 }
 
-/* MOVIES BY MOOD ---------------------------------------------------------- */
+/* MOVIES BY MOOD -------------------------------------------------------- */
 
 export async function fetchMoviesForMood(mood: Mood): Promise<Movie[]> {
   const { apiKey, baseUrl } = TMDB_CONFIG;
@@ -139,29 +131,21 @@ export async function fetchMoviesForMood(mood: Mood): Promise<Movie[]> {
 
   const data: TmdbResponse = await res.json();
 
-  const movies: Movie[] = data.results.map((item: TmdbMovieResult) => {
-    const title = item.title ?? item.name ?? "Untitled";
-    const yearString = item.release_date ?? item.first_air_date ?? "2000-01-01";
-    const year = parseInt(yearString.slice(0, 4), 10);
-
-    return {
-      id: String(item.id),
-      title,
-      year: isNaN(year) ? 0 : year,
-      runtimeMinutes: 0,
-      genres: [],
-      rating: item.vote_average ?? 0,
-      description: item.overview ?? "",
-      recommendedFor: ["solo", "friends", "partner"],
-      moods: [mood],
-      posterPath: item.poster_path ?? null,
-    };
-  });
+  // Use shared mapper + attach mood tag
+  const movies: Movie[] = (data.results ?? []).map(
+    (item: TmdbMovieResult): Movie => {
+      const base = mapBasicTmdbMovie(item);
+      return {
+        ...base,
+        moods: [mood],
+      };
+    }
+  );
 
   return movies;
 }
 
-/* FETCH TRENDING MOVIES -------------------------------------------------- */
+/* FETCH TRENDING MOVIES ------------------------------------------------- */
 
 export async function fetchTrendingMovies(): Promise<Movie[]> {
   const { apiKey, baseUrl } = TMDB_CONFIG;
@@ -181,29 +165,15 @@ export async function fetchTrendingMovies(): Promise<Movie[]> {
 
   const data: TmdbResponse = await res.json();
 
-  const movies: Movie[] = data.results.map((item: TmdbMovieResult) => {
-    const title = item.title ?? item.name ?? "Untitled";
-    const yearString = item.release_date ?? item.first_air_date ?? "2000-01-01";
-    const year = parseInt(yearString.slice(0, 4), 10);
-
-    return {
-      id: String(item.id),
-      title,
-      year: isNaN(year) ? 0 : year,
-      runtimeMinutes: 0,
-      genres: [],
-      rating: item.vote_average ?? 0,
-      description: item.overview ?? "",
-      recommendedFor: ["solo", "friends", "partner"],
-      moods: [], // unknown mood for trending
-      posterPath: item.poster_path ?? null,
-    };
-  });
+  // Trending list, no mood attached
+  const movies: Movie[] = (data.results ?? []).map(
+    (item: TmdbMovieResult) => mapBasicTmdbMovie(item)
+  );
 
   return movies;
 }
 
-/* SIMILAR MOVIES ---------------------------------------------------------- */
+/* SIMILAR MOVIES -------------------------------------------------------- */
 
 export async function fetchSimilarMovies(id: string): Promise<Movie[]> {
   const { apiKey, baseUrl } = TMDB_CONFIG;
@@ -223,30 +193,14 @@ export async function fetchSimilarMovies(id: string): Promise<Movie[]> {
 
   const data: TmdbResponse = await res.json();
 
-  const movies: Movie[] = data.results.map((item: TmdbMovieResult) => {
-    const title = item.title ?? item.name ?? "Untitled";
-    const yearString = item.release_date ?? item.first_air_date ?? "2000-01-01";
-    const year = parseInt(yearString.slice(0, 4), 10);
-
-    return {
-      id: String(item.id),
-      title,
-      year: isNaN(year) ? 0 : year,
-      runtimeMinutes: 0,
-      genres: [], // we only get genre_ids; skipping names for now
-      rating: item.vote_average ?? 0,
-      maturityLabel: undefined,
-      description: item.overview ?? "",
-      recommendedFor: ["solo", "friends", "partner"],
-      moods: [], // unknown here
-      posterPath: item.poster_path ?? null,
-    };
-  });
+  const movies: Movie[] = (data.results ?? []).map(
+    (item: TmdbMovieResult) => mapBasicTmdbMovie(item)
+  );
 
   return movies;
 }
 
-/* MOVIE DETAILS ----------------------------------------------------------- */
+/* MOVIE DETAILS --------------------------------------------------------- */
 
 export async function fetchMovieById(id: string): Promise<Movie | null> {
   const { apiKey, baseUrl } = TMDB_CONFIG;
@@ -287,12 +241,12 @@ export async function fetchMovieById(id: string): Promise<Movie | null> {
     maturityLabel,
     description: item.overview ?? "",
     recommendedFor: ["solo", "friends", "partner"],
-    moods: [], // WE DON'T KNOW WHICH MOOD FOR A SINGLE FETCH
+    moods: [], // we don't know mood for single fetch
     posterPath: item.poster_path ?? null,
   };
 }
 
-/* MOVIE CREDITS ----------------------------------------------------------- */
+/* MOVIE CREDITS --------------------------------------------------------- */
 
 export async function fetchMovieCredits(id: string) {
   const { apiKey, baseUrl } = TMDB_CONFIG;
@@ -313,7 +267,7 @@ export async function fetchMovieCredits(id: string) {
   };
 }
 
-/* MOVIE VIDEOS ----------------------------------------------------------- */
+/* MOVIE VIDEOS ---------------------------------------------------------- */
 
 export async function fetchMovieVideos(id: string) {
   const { apiKey, baseUrl } = TMDB_CONFIG;
@@ -330,7 +284,7 @@ export async function fetchMovieVideos(id: string) {
   return { results: json.results ?? [] };
 }
 
-/* MOVIE REVIEWS ----------------------------------------------------------- */
+/* MOVIE REVIEWS --------------------------------------------------------- */
 
 export async function fetchMovieReviews(id: string): Promise<Review[]> {
   const { apiKey, baseUrl } = TMDB_CONFIG;
