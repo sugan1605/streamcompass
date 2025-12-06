@@ -58,6 +58,7 @@ export function SearchBar({
         placeholder={placeholder}
         placeholderTextColor="#64748b"
         className="flex-1 px-1 text-sm text-slate-100"
+        style={{ paddingVertical: 0}}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
