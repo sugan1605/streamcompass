@@ -23,6 +23,43 @@ const MOOD_TO_GENRE_IDS: Partial<Record<Mood, number[]>> = {
   random: [], // no specific genres
 };
 
+/* SEARCH MOVIES BY TITLES FROM TMDB (BASIC) -------------------------------------------------- */
+
+export async function searchMoviesByTitle(query: string): Promise<Movie[]> {
+  if (!query.trim()) return [];
+
+  const url = `${TMDB_CONFIG.baseUrl}/search/movie?api_key=${
+    TMDB_CONFIG.apiKey
+  }&language=en-US&query=${encodeURIComponent(
+    query.trim()
+  )}&include_adult=false`;
+
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    console.log("TMDB search error:", res.status, await res.text());
+    throw new Error("Failed to search movies");
+  }
+
+  const data = await res.json();
+
+  return (data.results ?? []).map(
+    (item: any): Movie => ({
+      id: String(item.id),
+      title: item.title ?? "Untitled",
+      description: item.overview ?? "",
+      posterPath: item.poster_path ?? null,
+      genres: [], // can be enriched if you want
+      moods: [],
+      recommendedFor: ["solo", "friends", "partner"], // safe default
+      year: item.release_date ? Number(item.release_date.slice(0, 4)) : 0,
+      runtimeMinutes: 0,
+      rating: item.vote_average ? Number(item.vote_average) : 0,
+      maturityLabel: undefined,
+    })
+  );
+}
+
 /* WATCH PROVIDERS --------------------------------------------------------- */
 
 export async function fetchWatchProviders(

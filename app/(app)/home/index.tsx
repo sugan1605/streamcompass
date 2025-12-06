@@ -13,7 +13,7 @@ import { useState, useMemo, useEffect } from "react";
 import { router } from "expo-router";
 
 import { useAuth } from "@/src/context/AuthContext";
-import { fetchMoviesForMood } from "@/src/services/tmdb";
+import { fetchMoviesForMood, searchMoviesByTitle } from "@/src/services/tmdb";
 import { WatchContext, Mood, Movie } from "@/src/types/movies";
 import { MOCK_MOVIES } from "@/src/data/mockMovies";
 
@@ -24,6 +24,7 @@ import { useAiRecommendations } from "@/src/hooks/useAiRecommendations";
 
 import { SwipeableRow } from "@/src/components/ui/SwipeableRow";
 import { UIDialog } from "@/src/components/ui/UIDialog";
+import { SearchBar } from "@/src/components/ui/SearchBar";
 
 import { TMDB_CONFIG } from "@/src/config/tmdb";
 import { auth } from "@/src/firebaseConfig";
@@ -37,6 +38,13 @@ const ACCENT = "#f97316";
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
+
+  // Search state for TMDB title search
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Movie[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // Who is watching? (solo, partner, friends, etc.)
   const [watchContext, setWatchContext] = useState<WatchContext>("solo");
@@ -153,15 +161,39 @@ export default function HomeScreen() {
       await removeFavorite(currentUser.uid, undoMovie.id);
 
       // Remove from local added state.
-      setLocallyAddedIds((prev) =>
-        prev.filter((id) => id !== undoMovie.id)
-      );
+      setLocallyAddedIds((prev) => prev.filter((id) => id !== undoMovie.id));
     } catch (err) {
       console.log("Error undoing favorite:", err);
     } finally {
       // Close dialog and clear movie.
       setUndoVisible(false);
       setUndoMovie(null);
+    }
+  };
+
+  // Handles call to TMDB when user submits:
+
+  const handleSearch = async () => {
+    const q = searchQuery.trim();
+
+    // Empty query -> reset to mood based list
+
+    if (!q) {
+      setSearchResults([]);
+      setSearchError(null);
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      setSearchError(null);
+      const results = await searchMoviesByTitle(q);
+      setSearchResults(results);
+    } catch (e) {
+      console.log("Error searching movies:", e);
+      setSearchError("Could not search right now, Please try agian.");
+    } finally {
+      setSearchLoading(false);
     }
   };
 
@@ -189,6 +221,10 @@ export default function HomeScreen() {
 
   // If TMDB movies exist, use them; otherwise, fallback to mock recommendations.
   const displayedMovies = movies.length > 0 ? movies : recommendations;
+
+  // If there is a query, prefer search results over mood picks
+  const listToRender =
+    searchQuery.trim().length > 0 ? searchResults : displayedMovies;
 
   // Auto-dismiss undo dialog after 2 seconds if user does nothing.
   useEffect(() => {
@@ -323,8 +359,8 @@ export default function HomeScreen() {
           {/* AI empty state (no data yet). */}
           {!aiLoading && !aiError && aiMovies.length === 0 && (
             <Text className="mt-1 text-xs text-slate-400">
-              Add some favorites to your watchlist and I’ll start tailoring picks
-              for you.
+              Add some favorites to your watchlist and I’ll start tailoring
+              picks for you.
             </Text>
           )}
 
@@ -345,16 +381,49 @@ export default function HomeScreen() {
           </Text>
 
           {loadingMovies && (
-            <Text className="mt-1 text-xs text-slate-400">
-              Loading movies…
-            </Text>
+            <Text className="mt-1 text-xs text-slate-400">Loading movies…</Text>
           )}
 
-          {error && (
-            <Text className="mt-1 text-xs text-red-400">{error}</Text>
-          )}
+          {error && <Text className="mt-1 text-xs text-red-400">{error}</Text>}
         </View>
 
+        {/* Search bar for title search (TMDB) */}
+
+        <SearchBar
+          value={searchQuery}
+          onChangeText={(text) => {
+            setSearchQuery(text);
+
+            // If user clears input, reset search results and error.
+
+            if (text.trim().length === 0) {
+              setSearchResults([]);
+              setSearchError(null);
+            }
+          }}
+          onSubmit={handleSearch}
+          loading={searchLoading}
+          placeholder="Search by title…"
+          onClear={() => {
+            setSearchResults([]);
+            setSearchError(null);
+          }}
+        />
+
+        {/* Search-specific error / empty state */}
+
+        {searchError && (
+          <Text className="mb-2 text-xs text-red-400">{searchError}</Text>
+        )}
+
+        {searchQuery.trim().length > 0 &&
+          !searchLoading &&
+          !searchError &&
+          listToRender.length === 0 && (
+            <Text className="mb-2 text-xs text-slate-400">
+              No results found for "{searchQuery.trim()}",
+            </Text>
+          )}
         {/* Swipeable list of movies (TMDB or fallback). */}
         <View className="space-y-4">
           {displayedMovies.map((movie) => (
