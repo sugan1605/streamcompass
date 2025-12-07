@@ -1,87 +1,137 @@
+// Splash screen: animated compass logo + auth routing.
+
 import { useEffect, useRef } from "react";
-import { View, Text, Animated, Easing, Image } from "react-native";
+import { View, Text, Animated, Easing } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 
-import { useAuth } from "../../src/context/AuthContext";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useAuth } from "@/src/context/AuthContext";
+import { StreamCompassLogo } from "@/assets/logo/StreamCompassLogo"
 
-//  Oppdater path hvis logo ligger et annet sted
-import Logo from "@/assets/images/splash-icon.png";
 
 export default function SplashScreen() {
   const { user, loading } = useAuth();
-  const { themeName, colors } = useTheme();
-  const isDark = themeName === "dark";
 
-  // Animations
+  // Fade out container when leaving splash
   const outerOpacity = useRef(new Animated.Value(1)).current;
+
+  // Fade in content
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  // Pulsating logo (scale)
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  // Rotation for spin + wiggle
+  const rotation = useRef(new Animated.Value(0)).current;
+
+  // Progress bar fill
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  // Play logo + progress animations
+  // Main animation sequence
   useEffect(() => {
+    // Pulse loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Intro: fade in + progress + full spin
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 900,
+        duration: 800,
         easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 6,
-        tension: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 1400,
-        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
       Animated.timing(progressAnim, {
         toValue: 1,
-        duration: 1500,
+        duration: 1900,
         easing: Easing.inOut(Easing.ease),
-        useNativeDriver: false, // width kan ikke bruke native driver
+        useNativeDriver: false, // width cannot use native driver
       }),
-    ]).start();
+      Animated.timing(rotation, {
+        toValue: 360, // full spin
+        duration: 900,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (!finished) return;
+
+      // Wiggle loop after full spin
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(rotation, {
+            toValue: 372,
+            duration: 450,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(rotation, {
+            toValue: 348,
+            duration: 450,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(rotation, {
+            toValue: 360,
+            duration: 400,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    });
   }, []);
 
-  // Når auth er klar → fade ut + navigate
+  // Navigate after auth is known
   useEffect(() => {
     if (loading) return;
 
     const timeout = setTimeout(() => {
-      // liten haptic “pop” før vi går videre
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 
       Animated.timing(outerOpacity, {
         toValue: 0,
-        duration: 250,
+        duration: 260,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (!finished) return;
+
         if (user) {
           router.replace("/home");
         } else {
           router.replace("/signin");
         }
       });
-    }, 1600);
+    }, 2100); // let the animation play a bit
 
     return () => clearTimeout(timeout);
   }, [loading, user, outerOpacity]);
 
-  // Interpolasjoner
-  const rotate = rotateAnim.interpolate({
+  // Interpolations
+  const scale = pulseAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
+    outputRange: [0.94, 1.06],
+  });
+
+  const rotate = rotation.interpolate({
+    inputRange: [0, 360, 380],
+    outputRange: ["0deg", "360deg", "380deg"],
   });
 
   const progressWidth = progressAnim.interpolate({
@@ -92,7 +142,7 @@ export default function SplashScreen() {
   return (
     <SafeAreaView
       className="flex-1"
-      style={{ backgroundColor: colors.background }}
+      style={{ backgroundColor: "#020617" }} // fixed background (not theme-dependent)
     >
       <Animated.View
         style={{ flex: 1, opacity: outerOpacity }}
@@ -101,28 +151,15 @@ export default function SplashScreen() {
         {/* Center content */}
         <View className="flex-1 items-center justify-center">
           {/* Glow circle */}
-          <View
-            className={`h-52 w-52 items-center justify-center rounded-full ${
-              isDark ? "bg-emerald-400/10" : "bg-emerald-500/15"
-            }`}
-          >
+          <View className="h-52 w-52 items-center justify-center rounded-full bg-emerald-500/15">
             <Animated.View
               style={{
                 opacity: fadeAnim,
-                transform: [{ scale: scaleAnim }],
+                transform: [{ scale }, { rotate }],
               }}
               className="items-center justify-center"
             >
-              {/* Rotating logo */}
-              <Animated.Image
-                source={Logo}
-                style={{
-                  width: 160,
-                  height: 160,
-                  resizeMode: "contain",
-                  transform: [{ rotate }],
-                }}
-              />
+              <StreamCompassLogo width={160} height={160} />
             </Animated.View>
           </View>
 
@@ -131,24 +168,16 @@ export default function SplashScreen() {
             style={{ opacity: fadeAnim }}
             className="mt-6 items-center"
           >
-            <Text
-              className={`text-3xl font-extrabold tracking-tight ${
-                isDark ? "text-slate-50" : "text-slate-900"
-              }`}
-            >
+            <Text className="text-3xl font-extrabold tracking-tight text-slate-50">
               StreamCompass
             </Text>
-            <Text
-              className={`mt-1 text-sm ${
-                isDark ? "text-slate-400" : "text-slate-500"
-              }`}
-            >
+            <Text className="mt-1 text-sm text-slate-400">
               Smarter picks for every movie night
             </Text>
           </Animated.View>
 
           {/* Progress bar */}
-          <View className="mt-6 h-1.5 w-64 rounded-full bg-slate-800/40 overflow-hidden">
+          <View className="mt-6 h-1.5 w-64 rounded-full bg-slate-800/60 overflow-hidden">
             <Animated.View
               style={{ width: progressWidth }}
               className="h-full rounded-full bg-emerald-500"
@@ -158,11 +187,7 @@ export default function SplashScreen() {
 
         {/* Footer */}
         <View className="items-center">
-          <Text
-            className={`text-[11px] ${
-              isDark ? "text-slate-500" : "text-slate-500"
-            }`}
-          >
+          <Text className="text-[11px] text-slate-500">
             Powered by TMDB · AI-driven recommendations
           </Text>
         </View>
