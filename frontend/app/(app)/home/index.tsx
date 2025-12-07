@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useState, useMemo, useEffect } from "react";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 
 import { useAuth } from "@/src/context/AuthContext";
 import { fetchMoviesForMood, searchMoviesByTitle } from "@/src/services/tmdb";
@@ -25,6 +26,7 @@ import { useAiRecommendations } from "@/src/hooks/useAiRecommendations";
 import { SwipeableRow } from "@/src/components/ui/SwipeableRow";
 import { UIDialog } from "@/src/components/ui/UIDialog";
 import { SearchBar } from "@/src/components/ui/SearchBar";
+import { PowerButton } from "@/src/components/ui/PowerButton"; // <-- NEW IMPORT
 
 import { TMDB_CONFIG } from "@/src/config/tmdb";
 import { auth } from "@/src/firebaseConfig";
@@ -39,33 +41,27 @@ const ACCENT = "#f97316";
 export default function HomeScreen() {
   const { user, logout } = useAuth();
 
-  // Search state for TMDB title search
-
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Who is watching? (solo, partner, friends, etc.)
   const [watchContext, setWatchContext] = useState<WatchContext>("solo");
-  // Desired mood (chill, intense, random, etc.)
   const [mood, setMood] = useState<Mood>("chill");
-  // Timestamp for when TMDB list was last refreshed.
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
 
-  // Movies fetched from TMDB based on mood.
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loadingMovies, setLoadingMovies] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // State for undo dialog and which movie was just added.
   const [undoMovie, setUndoMovie] = useState<Movie | null>(null);
   const [undoVisible, setUndoVisible] = useState(false);
 
-  // Tracks movies added locally in this session (for filled icon on swipe button).
+  // NEW — Sign-out confirm dialog toggle
+  const [signOutDialogVisible, setSignOutDialogVisible] = useState(false);
+
   const [locallyAddedIds, setLocallyAddedIds] = useState<string[]>([]);
 
-  // AI-powered recommendations (from custom hook).
   const {
     movies: aiMovies,
     loading: aiLoading,
@@ -73,7 +69,6 @@ export default function HomeScreen() {
     reload: reloadAi,
   } = useAiRecommendations();
 
-  // Local fallback recommendations from mock data.
   const recommendations: Movie[] = useMemo(() => {
     const filtered = MOCK_MOVIES.filter((movie) => {
       const matchesContext = movie.recommendedFor.includes(watchContext);
@@ -81,7 +76,6 @@ export default function HomeScreen() {
       return matchesContext && matchesMood;
     });
 
-    // Prefer exact matches, but fall back to context-only if needed.
     if (filtered.length > 0) return filtered;
 
     return MOCK_MOVIES.filter((movie) =>
@@ -89,33 +83,39 @@ export default function HomeScreen() {
     );
   }, [watchContext, mood]);
 
-  // Helper: log out and go back to sign in screen.
   const handleLogout = async () => {
     await logout();
     router.replace("/signin");
   };
 
-  // Handles swipe action → add movie to watchlist + show undo dialog.
+  // NEW — Power button press → haptics + open dialog
+  const handleSignOutPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setSignOutDialogVisible(true);
+  };
+
+  const handleConfirmSignOut = async () => {
+    setSignOutDialogVisible(false);
+    await handleLogout();
+  };
+
+  const handleCancelSignOut = () => setSignOutDialogVisible(false);
+
   const handleAddToWatchlist = async (movie: Movie) => {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
-      // Ask user to sign in if they are not authenticated.
       Alert.alert(
         "Sign in required",
         "You need to be signed in to add movies to your watchlist.",
         [
           { text: "Cancel", style: "cancel" },
-          {
-            text: "Go to sign in",
-            onPress: () => router.replace("/signin"),
-          },
+          { text: "Go to sign in", onPress: () => router.replace("/signin") },
         ]
       );
       return;
     }
 
-    // Payload for favorites in Firestore.
     const payload: FavoriteMovie = {
       movieId: movie.id,
       title: movie.title,
@@ -126,15 +126,12 @@ export default function HomeScreen() {
     };
 
     try {
-      // Persist favorite to backend.
       await addFavorite(currentUser.uid, payload);
 
-      // Mark as added locally for icon fill.
       setLocallyAddedIds((prev) =>
         prev.includes(movie.id) ? prev : [...prev, movie.id]
       );
 
-      // Show undo dialog with this movie.
       setUndoMovie(movie);
       setUndoVisible(true);
     } catch (err) {
@@ -146,37 +143,23 @@ export default function HomeScreen() {
     }
   };
 
-  // Handles tapping the "Undo" button in the dialog.
   const handleUndoAdd = async () => {
     if (!undoMovie) return;
     const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setUndoVisible(false);
-      setUndoMovie(null);
-      return;
-    }
 
     try {
-      // Remove from favorites in backend.
       await removeFavorite(currentUser.uid, undoMovie.id);
-
-      // Remove from local added state.
       setLocallyAddedIds((prev) => prev.filter((id) => id !== undoMovie.id));
     } catch (err) {
       console.log("Error undoing favorite:", err);
     } finally {
-      // Close dialog and clear movie.
       setUndoVisible(false);
       setUndoMovie(null);
     }
   };
 
-  // Handles call to TMDB when user submits:
-
   const handleSearch = async () => {
     const q = searchQuery.trim();
-
-    // Empty query -> reset to mood based list
 
     if (!q) {
       setSearchResults([]);
@@ -191,19 +174,17 @@ export default function HomeScreen() {
       setSearchResults(results);
     } catch (e) {
       console.log("Error searching movies:", e);
-      setSearchError("Could not search right now, Please try agian.");
+      setSearchError("Could not search right now, Please try again.");
     } finally {
       setSearchLoading(false);
     }
   };
 
-  // Handles closing the dialog without undoing.
   const handleDismissDialog = () => {
     setUndoVisible(false);
     setUndoMovie(null);
   };
 
-  // Fetch TMDB movies for the selected mood.
   const handleRefresh = async () => {
     try {
       setLoadingMovies(true);
@@ -219,18 +200,12 @@ export default function HomeScreen() {
     }
   };
 
-  // If TMDB movies exist, use them; otherwise, fallback to mock recommendations.
   const displayedMovies = movies.length > 0 ? movies : recommendations;
-
-  // If there is a query, prefer search results over mood picks
   const listToRender =
     searchQuery.trim().length > 0 ? searchResults : displayedMovies;
 
-  // Helper function to tell if its true that the user is actively searching
-
   const isSearching = searchQuery.trim().length > 0;
 
-  // Auto-dismiss undo dialog after 2 seconds if user does nothing.
   useEffect(() => {
     if (!undoVisible) return;
 
@@ -252,7 +227,7 @@ export default function HomeScreen() {
           paddingBottom: 120,
         }}
       >
-        {/* Header card with app name and sign out. */}
+        {/* Header */}
         <View className="mb-4 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-4 shadow-lg shadow-black/40">
           <View className="flex-row items-start justify-between">
             <View className="flex-1 pr-4">
@@ -264,24 +239,17 @@ export default function HomeScreen() {
               </Text>
             </View>
 
-            <Pressable
-              onPress={handleLogout}
-              className="rounded-full border border-slate-600 bg-slate-900 px-3 py-1"
-            >
-              <Text className="text-xs font-semibold text-slate-100">
-                Sign out
-              </Text>
-            </Pressable>
+            {/* NEW — Yellow round power button */}
+            <PowerButton onPress={handleSignOutPress} />
           </View>
         </View>
 
-        {/* Who & mood selection card. */}
+        {/* Who & mood selection card */}
         <View className="mb-5 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-5 shadow-lg shadow-black/40">
           <Text className="mb-3 text-sm font-semibold tracking-wide text-slate-200">
             Who & mood
           </Text>
 
-          {/* Watch context selector (solo, partner, friends). */}
           <View className="mb-4">
             <WatchContextSelector
               value={watchContext}
@@ -289,12 +257,10 @@ export default function HomeScreen() {
             />
           </View>
 
-          {/* Mood selector (chill, intense, etc.). */}
           <View className="mb-5">
             <MoodSelector value={mood} onChange={setMood} />
           </View>
 
-          {/* Fetch fresh suggestions from TMDB. */}
           <Pressable
             onPress={handleRefresh}
             className="rounded-full bg-emerald-600 px-4 py-3.5 shadow-lg shadow-emerald-900/50"
@@ -304,7 +270,6 @@ export default function HomeScreen() {
             </Text>
           </Pressable>
 
-          {/* Show last refresh time if available. */}
           {lastRefreshedAt && (
             <Text className="mt-2 text-[11px] text-slate-400">
               Suggestions refreshed at {lastRefreshedAt.toLocaleTimeString()}
@@ -312,7 +277,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Soft CTA → AI Picks tab. */}
+        {/* AI CTA */}
         <Pressable
           onPress={() => router.push("/ai")}
           className="mb-3 self-start rounded-full border border-violet-500/70 bg-violet-600/15 px-4 py-2 shadow shadow-violet-900/50"
@@ -322,7 +287,7 @@ export default function HomeScreen() {
           </Text>
         </Pressable>
 
-        {/* AI Picks summary card. */}
+        {/* AI section */}
         <View className="mb-6 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-4 shadow-lg shadow-black/40">
           <View className="mb-3 flex-row items-center justify-between">
             <View className="flex-1 pr-4">
@@ -334,7 +299,6 @@ export default function HomeScreen() {
               </Text>
             </View>
 
-            {/* Manually refresh AI picks. */}
             <Pressable
               onPress={reloadAi}
               className="rounded-full bg-slate-800 px-3 py-1.5"
@@ -345,7 +309,6 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {/* AI loading state. */}
           {aiLoading && (
             <View className="mt-1 flex-row items-center">
               <ActivityIndicator color={ACCENT} />
@@ -355,12 +318,10 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* AI error state. */}
           {!aiLoading && aiError && (
             <Text className="mt-1 text-xs text-red-400">{aiError}</Text>
           )}
 
-          {/* AI empty state (no data yet). */}
           {!aiLoading && !aiError && aiMovies.length === 0 && (
             <Text className="mt-1 text-xs text-slate-400">
               Add some favorites to your watchlist and I’ll start tailoring
@@ -368,7 +329,6 @@ export default function HomeScreen() {
             </Text>
           )}
 
-          {/* AI results list. */}
           {!aiLoading && !aiError && aiMovies.length > 0 && (
             <View className="mt-3 space-y-3">
               {aiMovies.map((movie) => (
@@ -378,7 +338,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Section header for tonight's picks / search results. */}
+        {/* Section header */}
         <View className="mb-3">
           <Text className="text-lg font-semibold text-slate-50">
             {isSearching ? "Search results" : "Tonight’s picks"}
@@ -393,15 +353,10 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Search bar for title search (TMDB) */}
-
         <SearchBar
           value={searchQuery}
           onChangeText={(text) => {
             setSearchQuery(text);
-
-            // If user clears input, reset search results and error.
-
             if (text.trim().length === 0) {
               setSearchResults([]);
               setSearchError(null);
@@ -416,8 +371,6 @@ export default function HomeScreen() {
           }}
         />
 
-        {/* Search-specific error / empty state */}
-
         {searchError && (
           <Text className="mb-2 text-xs text-red-400">{searchError}</Text>
         )}
@@ -431,7 +384,6 @@ export default function HomeScreen() {
             </Text>
           )}
 
-        {/* Swipeable list of movies (search results OR tonight’s picks). */}
         <View className="space-y-4">
           {listToRender.map((movie) => (
             <SwipeableRow
@@ -445,7 +397,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Undo dialog overlay for recently added movie. */}
+      {/* Undo dialog */}
       <UIDialog
         visible={undoVisible}
         title="Added to watchlist"
@@ -456,6 +408,17 @@ export default function HomeScreen() {
         onPrimary={handleUndoAdd}
         secondaryLabel="Close"
         onSecondary={handleDismissDialog}
+      />
+
+      {/* NEW — Confirm Sign-Out */}
+      <UIDialog
+        visible={signOutDialogVisible}
+        title="Sign out"
+        message="Are you sure you want to sign out from StreamCompass?"
+        primaryLabel="Sign out"
+        onPrimary={handleConfirmSignOut}
+        secondaryLabel="Cancel"
+        onSecondary={handleCancelSignOut}
       />
     </SafeAreaView>
   );
