@@ -165,7 +165,7 @@ stream_compass_app/
 - Local caching for performance improvements
 
 ## 📝 CHANGELOG & Releases
-- See [CHANGELOG.md] / Contains version updates and development notes. (https://github.com/sugan1605/streamcompass/blob/main/CHANGELOG.md)
+- Contains version updates and development notes. [CHANGELOG](https://github.com/sugan1605/streamcompass/blob/main/CHANGELOG.md)
 
 ## 👤 Author
 
