@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    // Backend does NOT need React / React Native types
+    // Option 1: no explicit types at all (TS will infer)
+    // "types": [],
+
+    // Option 2 (recommended): use Node types
+    "types": ["node"]
+  },
+  "include": ["src", "**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,100 @@
+# ============================================
+# Dependencies
+# ============================================
+node_modules/
+
+# ============================================
+# Expo / React Native
+# ============================================
+.expo/
+.expo-shared/
+dist/
+web-build/
+.expo-web/
+
+# Metro bundles
+bundle/
+*.jsbundle
+*.map
+
+# ============================================
+# iOS / Android
+# ============================================
+ios/
+android/
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+xcuserdata/
+*.xcworkspace
+*.orig.*
+android/local.properties
+
+# ============================================
+# Environment Variables
+# ============================================
+.env
+.env.local
+.env.*
+*.env
+
+frontend/.env
+backend/.env
+
+# ============================================
+# Firebase
+# ============================================
+GoogleService-Info.plist
+android/app/google-services.json
+firebaseConfig.js
+firebase.json
+*.serviceAccountKey.json
+
+# ============================================
+# OpenAI
+# ============================================
+openai_key.txt
+openai.json
+openai_key.json
+
+# ============================================
+# Logs
+# ============================================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+expo-error.log
+*.log
+
+# ============================================
+# IDE / OS files
+# ============================================
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+
+# ============================================
+# Cache
+# ============================================
+.expo-cache/
+.cache/
+.tmp/
+temp/
+Temp/
+
+# ============================================
+# TypeScript
+# ============================================
+*.tsbuildinfo
+
+# ============================================
+# Example / Garbage files
+# ============================================
+app-example
