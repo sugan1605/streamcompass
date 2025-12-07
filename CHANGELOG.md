@@ -5,6 +5,19 @@ This project follows a simplified semantic versioning approach.
 
 ---
 
+## v1.7 – Animated Splash Screen + SVG Logo Upgrade
+
+### Added
+- New animated splash screen (compass spin + pulse + wiggle)
+- Replaced PNG logo with vector SVG React component (`StreamCompassLogo`)
+- Performance improvements in splash animation timing
+
+### Fixed
+- Removed ThemeContext dependency from splash screen
+- Improved progress bar smoothness
+
+---
+
 ## **v1.6 – Monorepo Restructure & Backend Integration**  
 **Released:** 2025-12-07  
 
