@@ -1,13 +1,15 @@
 // Home screen: mood-based picks, AI suggestions and swipe-to-save watchlist.
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useState, useMemo, useEffect } from "react";
 import { router } from "expo-router";
@@ -218,208 +220,220 @@ export default function HomeScreen() {
   }, [undoVisible]);
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-950">
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 24,
-          paddingBottom: 120,
-        }}
-      >
-        {/* Header */}
-        <View className="mb-4 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-4 shadow-lg shadow-black/40">
-          <View className="flex-row items-start justify-between">
-            <View className="flex-1 pr-4">
-              <Text className="text-2xl font-extrabold text-slate-50">
-                StreamCompass
-              </Text>
-              <Text className="mt-1 text-xs text-slate-400">
-                Hi {user?.email ?? "there"}, let’s find tonight’s perfect title.
-              </Text>
+    <KeyboardAvoidingView
+      className="flex-1 bg-slate-950"
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <SafeAreaView className="flex-1 bg-slate-950">
+        <KeyboardAwareScrollView
+          className="flex-1"
+          enableOnAndroid={true}
+          extraScrollHeight={40} // 👈 scrolls the content a bit above keyboard
+          keyboardOpeningTime={0}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 24,
+            paddingBottom: 120,
+          }}
+        >
+          {/* Header */}
+          <View className="mb-4 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-4 shadow-lg shadow-black/40">
+            <View className="flex-row items-start justify-between">
+              <View className="flex-1 pr-4">
+                <Text className="text-2xl font-extrabold text-slate-50">
+                  StreamCompass
+                </Text>
+                <Text className="mt-1 text-xs text-slate-400">
+                  Hi {user?.email ?? "there"}, let’s find tonight’s perfect
+                  title.
+                </Text>
+              </View>
+
+              {/* NEW — Yellow round power button */}
+              <PowerButton onPress={handleSignOutPress} />
+            </View>
+          </View>
+
+          {/* Who & mood selection card */}
+          <View className="mb-5 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-5 shadow-lg shadow-black/40">
+            <Text className="mb-3 text-sm font-semibold tracking-wide text-slate-200">
+              Who & mood
+            </Text>
+
+            <View className="mb-4">
+              <WatchContextSelector
+                value={watchContext}
+                onChange={setWatchContext}
+              />
             </View>
 
-            {/* NEW — Yellow round power button */}
-            <PowerButton onPress={handleSignOutPress} />
-          </View>
-        </View>
-
-        {/* Who & mood selection card */}
-        <View className="mb-5 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-5 shadow-lg shadow-black/40">
-          <Text className="mb-3 text-sm font-semibold tracking-wide text-slate-200">
-            Who & mood
-          </Text>
-
-          <View className="mb-4">
-            <WatchContextSelector
-              value={watchContext}
-              onChange={setWatchContext}
-            />
-          </View>
-
-          <View className="mb-5">
-            <MoodSelector value={mood} onChange={setMood} />
-          </View>
-
-          <Pressable
-            onPress={handleRefresh}
-            className="rounded-full bg-emerald-600 px-4 py-3.5 shadow-lg shadow-emerald-900/50"
-          >
-            <Text className="text-center text-sm font-semibold text-white">
-              Find something to watch
-            </Text>
-          </Pressable>
-
-          {lastRefreshedAt && (
-            <Text className="mt-2 text-[11px] text-slate-400">
-              Suggestions refreshed at {lastRefreshedAt.toLocaleTimeString()}
-            </Text>
-          )}
-        </View>
-
-        {/* AI CTA */}
-        <Pressable
-          onPress={() => router.push("/ai")}
-          className="mb-3 self-start rounded-full border border-violet-500/70 bg-violet-600/15 px-4 py-2 shadow shadow-violet-900/50"
-        >
-          <Text className="text-xs font-semibold text-violet-200">
-            Try AI Picks ✨
-          </Text>
-        </Pressable>
-
-        {/* AI section */}
-        <View className="mb-6 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-4 shadow-lg shadow-black/40">
-          <View className="mb-3 flex-row items-center justify-between">
-            <View className="flex-1 pr-4">
-              <Text className="text-base font-semibold text-slate-50">
-                AI picks just for you
-              </Text>
-              <Text className="mt-1 text-xs text-slate-400">
-                Curated from your watchlist and trending titles.
-              </Text>
+            <View className="mb-5">
+              <MoodSelector value={mood} onChange={setMood} />
             </View>
 
             <Pressable
-              onPress={reloadAi}
-              className="rounded-full bg-slate-800 px-3 py-1.5"
+              onPress={handleRefresh}
+              className="rounded-full bg-emerald-600 px-4 py-3.5 shadow-lg shadow-emerald-900/50"
             >
-              <Text className="text-xs font-semibold text-slate-100">
-                Refresh
+              <Text className="text-center text-sm font-semibold text-white">
+                Find something to watch
               </Text>
             </Pressable>
+
+            {lastRefreshedAt && (
+              <Text className="mt-2 text-[11px] text-slate-400">
+                Suggestions refreshed at {lastRefreshedAt.toLocaleTimeString()}
+              </Text>
+            )}
           </View>
 
-          {aiLoading && (
-            <View className="mt-1 flex-row items-center">
-              <ActivityIndicator color={ACCENT} />
-              <Text className="ml-2 text-xs text-slate-400">
-                AI is picking movies…
-              </Text>
-            </View>
-          )}
-
-          {!aiLoading && aiError && (
-            <Text className="mt-1 text-xs text-red-400">{aiError}</Text>
-          )}
-
-          {!aiLoading && !aiError && aiMovies.length === 0 && (
-            <Text className="mt-1 text-xs text-slate-400">
-              Add some favorites to your watchlist and I’ll start tailoring
-              picks for you.
+          {/* AI CTA */}
+          <Pressable
+            onPress={() => router.push("/ai")}
+            className="mb-3 self-start rounded-full border border-violet-500/70 bg-violet-600/15 px-4 py-2 shadow shadow-violet-900/50"
+          >
+            <Text className="text-xs font-semibold text-violet-200">
+              Try AI Picks ✨
             </Text>
-          )}
+          </Pressable>
 
-          {!aiLoading && !aiError && aiMovies.length > 0 && (
-            <View className="mt-3 space-y-3">
-              {aiMovies.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} />
-              ))}
+          {/* AI section */}
+          <View className="mb-6 rounded-3xl border border-slate-800/70 bg-slate-900/95 px-5 py-4 shadow-lg shadow-black/40">
+            <View className="mb-3 flex-row items-center justify-between">
+              <View className="flex-1 pr-4">
+                <Text className="text-base font-semibold text-slate-50">
+                  AI picks just for you
+                </Text>
+                <Text className="mt-1 text-xs text-slate-400">
+                  Curated from your watchlist and trending titles.
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={reloadAi}
+                className="rounded-full bg-slate-800 px-3 py-1.5"
+              >
+                <Text className="text-xs font-semibold text-slate-100">
+                  Refresh
+                </Text>
+              </Pressable>
             </View>
-          )}
-        </View>
 
-        {/* Section header */}
-        <View className="mb-3">
-          <Text className="text-lg font-semibold text-slate-50">
-            {isSearching ? "Search results" : "Tonight’s picks"}
-          </Text>
+            {aiLoading && (
+              <View className="mt-1 flex-row items-center">
+                <ActivityIndicator color={ACCENT} />
+                <Text className="ml-2 text-xs text-slate-400">
+                  AI is picking movies…
+                </Text>
+              </View>
+            )}
 
-          {loadingMovies && !isSearching && (
-            <Text className="mt-1 text-xs text-slate-400">Loading movies…</Text>
-          )}
+            {!aiLoading && aiError && (
+              <Text className="mt-1 text-xs text-red-400">{aiError}</Text>
+            )}
 
-          {error && !isSearching && (
-            <Text className="mt-1 text-xs text-red-400">{error}</Text>
-          )}
-        </View>
+            {!aiLoading && !aiError && aiMovies.length === 0 && (
+              <Text className="mt-1 text-xs text-slate-400">
+                Add some favorites to your watchlist and I’ll start tailoring
+                picks for you.
+              </Text>
+            )}
 
-        <SearchBar
-          value={searchQuery}
-          onChangeText={(text) => {
-            setSearchQuery(text);
-            if (text.trim().length === 0) {
+            {!aiLoading && !aiError && aiMovies.length > 0 && (
+              <View className="mt-3 space-y-3">
+                {aiMovies.map((movie) => (
+                  <MovieCard key={movie.id} movie={movie} />
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Section header */}
+          <View className="mb-3">
+            <Text className="text-lg font-semibold text-slate-50">
+              {isSearching ? "Search results" : "Tonight’s picks"}
+            </Text>
+
+            {loadingMovies && !isSearching && (
+              <Text className="mt-1 text-xs text-slate-400">
+                Loading movies…
+              </Text>
+            )}
+
+            {error && !isSearching && (
+              <Text className="mt-1 text-xs text-red-400">{error}</Text>
+            )}
+          </View>
+
+          <SearchBar
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              if (text.trim().length === 0) {
+                setSearchResults([]);
+                setSearchError(null);
+              }
+            }}
+            onSubmit={handleSearch}
+            loading={searchLoading}
+            placeholder="Search by title…"
+            onClear={() => {
               setSearchResults([]);
               setSearchError(null);
-            }
-          }}
-          onSubmit={handleSearch}
-          loading={searchLoading}
-          placeholder="Search by title…"
-          onClear={() => {
-            setSearchResults([]);
-            setSearchError(null);
-          }}
-        />
+            }}
+          />
 
-        {searchError && (
-          <Text className="mb-2 text-xs text-red-400">{searchError}</Text>
-        )}
-
-        {searchQuery.trim().length > 0 &&
-          !searchLoading &&
-          !searchError &&
-          listToRender.length === 0 && (
-            <Text className="mb-2 text-xs text-slate-400">
-              No results found for "{searchQuery.trim()}",
-            </Text>
+          {searchError && (
+            <Text className="mb-2 text-xs text-red-400">{searchError}</Text>
           )}
 
-        <View className="space-y-4">
-          {listToRender.map((movie) => (
-            <SwipeableRow
-              key={movie.id}
-              onPrimaryAction={() => handleAddToWatchlist(movie)}
-              active={locallyAddedIds.includes(movie.id)}
-            >
-              <MovieCard movie={movie} />
-            </SwipeableRow>
-          ))}
-        </View>
-      </ScrollView>
+          {searchQuery.trim().length > 0 &&
+            !searchLoading &&
+            !searchError &&
+            listToRender.length === 0 && (
+              <Text className="mb-2 text-xs text-slate-400">
+                No results found for "{searchQuery.trim()}",
+              </Text>
+            )}
 
-      {/* Undo dialog */}
-      <UIDialog
-        visible={undoVisible}
-        title="Added to watchlist"
-        message={
-          undoMovie ? `"${undoMovie.title}" was added to your watchlist.` : ""
-        }
-        primaryLabel="Undo"
-        onPrimary={handleUndoAdd}
-        secondaryLabel="Close"
-        onSecondary={handleDismissDialog}
-      />
+          <View className="space-y-4">
+            {listToRender.map((movie) => (
+              <SwipeableRow
+                key={movie.id}
+                onPrimaryAction={() => handleAddToWatchlist(movie)}
+                active={locallyAddedIds.includes(movie.id)}
+              >
+                <MovieCard movie={movie} />
+              </SwipeableRow>
+            ))}
+          </View>
+        </KeyboardAwareScrollView>
 
-      {/* NEW — Confirm Sign-Out */}
-      <UIDialog
-        visible={signOutDialogVisible}
-        title="Sign out"
-        message="Are you sure you want to sign out from StreamCompass?"
-        primaryLabel="Sign out"
-        onPrimary={handleConfirmSignOut}
-        secondaryLabel="Cancel"
-        onSecondary={handleCancelSignOut}
-      />
-    </SafeAreaView>
+        {/* Undo dialog */}
+        <UIDialog
+          visible={undoVisible}
+          title="Added to watchlist"
+          message={
+            undoMovie ? `"${undoMovie.title}" was added to your watchlist.` : ""
+          }
+          primaryLabel="Undo"
+          onPrimary={handleUndoAdd}
+          secondaryLabel="Close"
+          onSecondary={handleDismissDialog}
+        />
+
+        {/* NEW — Confirm Sign-Out */}
+        <UIDialog
+          visible={signOutDialogVisible}
+          title="Sign out"
+          message="Are you sure you want to sign out from StreamCompass?"
+          primaryLabel="Sign out"
+          onPrimary={handleConfirmSignOut}
+          secondaryLabel="Cancel"
+          onSecondary={handleCancelSignOut}
+        />
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }

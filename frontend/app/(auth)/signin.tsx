@@ -8,6 +8,9 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform
 } from "react-native";
 
 import {
@@ -45,7 +48,7 @@ export default function SignInScreen() {
         await createUserProfile(cred.user);
       }
 
-      router.replace("/home");
+      router.replace("/(app)/(tabs)/home");
     } catch (error: any) {
       console.log("Auth error:", error);
 
@@ -77,65 +80,85 @@ export default function SignInScreen() {
     (loading ? " opacity-70" : "");
 
   return (
-    <View className="flex-1 justify-center bg-slate-950 px-6">
-      {/* App Title */}
-      <Text className="mb-2 text-center text-3xl font-bold text-slate-50">
-        StreamCompass 🎬
-      </Text>
-
-      <Text className="mb-6 text-center text-base text-slate-300">
-        {mode === "signin" ? "Sign in to continue" : "Create a new account"}
-      </Text>
-
-      {/* Email */}
-      <TextInput
-        className="mb-3 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-base text-slate-100"
-        placeholder="Email"
-        placeholderTextColor="#94a3b8"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      {/* Password */}
-      <TextInput
-        className="mb-3 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-base text-slate-100"
-        placeholder="Password"
-        placeholderTextColor="#94a3b8"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      {/* Submit button */}
-      <Pressable
-        className={buttonClasses}
-        onPress={handleAuth}
-        disabled={loading}
+    <KeyboardAvoidingView
+      className="flex-1 bg-slate-950"
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "center",
+          paddingHorizontal: 24,
+        }}
+        keyboardShouldPersistTaps="handled"
       >
-        {loading ? (
-          <ActivityIndicator color="#ffffff" />
-        ) : (
-          <Text className="text-base font-semibold text-slate-950">
-            {mode === "signin" ? "Sign In" : "Sign Up"}
-          </Text>
-        )}
-      </Pressable>
-
-      {/* Switch between signin/signup */}
-      <Pressable
-        className="mt-4"
-        onPress={() =>
-          setMode((prev) => (prev === "signin" ? "signup" : "signin"))
-        }
-      >
-        <Text className="text-center text-sm text-sky-400">
-          {mode === "signin"
-            ? "Don't have an account? Create one"
-            : "Already have an account? Sign in"}
+        {/* App Title */}
+        <Text className="mb-2 text-center text-3xl font-bold text-slate-50">
+          StreamCompass 🎬
         </Text>
-      </Pressable>
-    </View>
+
+        <Text className="mb-6 text-center text-base text-slate-300">
+          {mode === "signin" ? "Sign in to continue" : "Create a new account"}
+        </Text>
+
+        {/* Email */}
+        <TextInput
+          className="mb-3 h-12 rounded-lg border border-slate-700 bg-slate-800 px-3 text-base text-slate-100"
+          style={{
+            paddingBottom: 6,
+            textAlignVertical: "center",
+          }}
+          placeholder="Email"
+          placeholderTextColor="#94a3b8"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+
+        {/* Password */}
+        <TextInput
+          className="mb-3 h-12 rounded-lg border border-slate-700 bg-slate-800 px-3 text-base text-slate-100"
+          style={{
+            paddingBottom: 0,
+            textAlignVertical: "center",
+          }}
+          placeholder="Password"
+          placeholderTextColor="#94a3b8"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+
+        {/* Submit button */}
+        <Pressable
+          className={buttonClasses}
+          onPress={handleAuth}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text className="text-base font-semibold text-slate-950">
+              {mode === "signin" ? "Sign In" : "Sign Up"}
+            </Text>
+          )}
+        </Pressable>
+
+        {/* Switch between signin/signup */}
+        <Pressable
+          className="mt-4"
+          onPress={() =>
+            setMode((prev) => (prev === "signin" ? "signup" : "signin"))
+          }
+        >
+          <Text className="text-center text-sm text-sky-400">
+            {mode === "signin"
+              ? "Don't have an account? Create one"
+              : "Already have an account? Sign in"}
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

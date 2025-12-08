@@ -45,7 +45,7 @@ export function SearchBar({
   };
 
   return (
-    <View className="mb-3 flex-row items-center rounded-2xl border border-slate-800 bg-slate-900/95 px-3 py-2">
+    <View className="mb-3 flex-row items-center rounded-2xl border border-slate-800 bg-slate-900/95 px-3 h-12">
       {/* Left search icon */}
       <View className="mr-2">
         <MagnifyingGlass size={16} color="#94a3b8" weight="bold" />
@@ -58,7 +58,7 @@ export function SearchBar({
         placeholder={placeholder}
         placeholderTextColor="#64748b"
         className="flex-1 px-1 text-sm text-slate-100"
-        style={{ paddingVertical: 0}}
+        style={{ paddingVertical: 0, textAlignVertical: "center" }}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
@@ -68,9 +68,7 @@ export function SearchBar({
       {/* Right side controls */}
       <View className="ml-2 flex-row items-center gap-1">
         {/* Loader while TMDB search is running */}
-        {loading && (
-          <ActivityIndicator size="small" color="#22c55e" />
-        )}
+        {loading && <ActivityIndicator size="small" color="#22c55e" />}
 
         {/* Clear button when there is text and not loading */}
         {!loading && hasText && (
