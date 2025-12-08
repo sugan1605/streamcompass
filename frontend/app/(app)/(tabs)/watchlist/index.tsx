@@ -193,7 +193,9 @@ export default function FavoritesScreen() {
             </View>
 
             <Pressable
-              onPress={() => router.push("/(app)/home")}
+              onPress={() => router.push("/(app)/(tabs)/home")
+} 
+              
               className="rounded-full border border-slate-400/60 bg-slate-900 px-3 py-1.5 shadow-md shadow-black/40"
             >
               <Text className="text-[11px] font-semibold text-slate-50">
@@ -248,7 +250,7 @@ export default function FavoritesScreen() {
 
             <View className="mt-4 flex-row gap-3">
               <Pressable
-                onPress={() => router.push("/(app)/home")}
+                onPress={() => router.push("/(app)/(tabs)/home")}
                 className="flex-1 items-center justify-center rounded-full bg-emerald-600 px-4 py-2 shadow-md shadow-emerald-900/40"
               >
                 <Text className="text-xs font-semibold text-white">

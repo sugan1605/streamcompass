@@ -17,6 +17,9 @@ export default function RootLayout() {
               <Stack
                 screenOptions={{
                   headerShown: false,
+                  gestureEnabled: true, // This allow swipe gestures
+                  fullScreenGestureEnabled: true, // This allows to swipe from anywhere, not just from the edge
+                  gestureDirection: "horizontal", // Left to right navigation
                 }}
               />
             </SoundProvider>

@@ -405,7 +405,7 @@ export default function MovieDetailsScreen() {
           </Text>
           <UIButton
             label="Go back home"
-            onPress={() => router.replace("/(app)/home")}
+            onPress={() => router.replace("/(app)/(tabs)/home")}
             variant="outline"
             hapticStyle="light"
             className="px-5"
